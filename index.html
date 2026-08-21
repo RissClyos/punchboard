@@ -58,6 +58,18 @@
   .x{position:absolute;top:6px;right:6px;border:none;background:transparent;color:var(--inkSoft);cursor:pointer;font-size:15px;line-height:1;padding:3px 5px;border-radius:3px;opacity:0;transition:opacity .15s;}
   .tile.up:hover .x,.x:focus{opacity:1;}
   .x:hover{background:rgba(194,53,44,.15);color:var(--red);}
+  .tile.asking .x{display:none;}
+  .confirm{position:absolute;inset:0;border-radius:3px;background:var(--cream);box-shadow:inset 0 0 0 2px var(--red);
+           display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;text-align:center;}
+  .confirm .q{font-size:12px;font-weight:600;line-height:1.25;}
+  .confirm .row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .cbtn{font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:999px;padding:6px 12px;border:1.5px solid transparent;}
+  .cbtn.yes{background:var(--red);color:var(--cream);}
+  .cbtn.no{background:transparent;color:var(--inkSoft);border-color:rgba(33,28,21,.35);}
+  .cbtn.no:hover{border-color:var(--ink);color:var(--ink);}
+  .cbtn:focus-visible{outline:3px solid var(--blue);outline-offset:2px;}
+  #undoBtn{border-color:var(--red);color:var(--red);}
+  #undoBtn:hover{background:rgba(194,53,44,.12);border-color:var(--red);color:var(--red);}
   .panel{background:var(--cream);border-radius:3px;padding:16px;box-shadow:0 3px 0 rgba(33,28,21,.35);margin-top:22px;}
   .in{font-family:inherit;font-size:16px;width:100%;background:#fff;color:var(--ink);border:1.5px solid rgba(33,28,21,.3);border-radius:3px;padding:9px 10px;}
   textarea.in{min-height:110px;resize:vertical;font-size:13px;}
@@ -176,6 +188,7 @@
     <button class="chip" id="importBtn">Restore backup</button>
     <input type="file" id="importFile" accept="application/json" hidden />
     <button class="chip" id="clearBtn">Empty the shelf</button>
+    <button class="chip" id="undoBtn" hidden>↺ Undo</button>
     <span class="meta" id="saveState"></span>
   </footer>
 </div>
@@ -223,7 +236,84 @@ const $ = id => document.getElementById(id);
 
 let games = load();
 let players = 4, maxTime = 0, weight = "any", picked = null, find = "";
+let asking = null;                 // id of the tile currently asking "Remove?"
 if(!canSave) $("warn").hidden = false;
+
+/* ---------- undo, for the destructive things only ----------
+   Removing a game, emptying the shelf, restoring a backup and taking the
+   cloud's side in a sync conflict all snapshot the shelf first. Adding a
+   game and cycling brain pips don't — they're cheap to reverse by hand,
+   and keeping them out means Undo always points at something that
+   actually cost you something.                                          */
+const UNDO_KEY = "punchboard.undo.v1";
+const UNDO_MAX = 8;
+let undoStack = [];
+
+/* Two kinds of step, deliberately:
+
+   "put"     — one game came off the shelf. Undo puts that one game back
+               where it was, and doesn't care what else has changed since.
+               Safe to keep across reloads, so a deletion you notice
+               tomorrow is still recoverable.
+
+   "replace" — the whole shelf was swapped (emptied, a backup restored, a
+               sync conflict resolved). Undo can only restore the previous
+               array wholesale, which would throw away anything done since,
+               so these live in memory and die with the tab. Within the
+               session that did the damage, they're exactly right.        */
+
+try{
+  const raw = localStorage.getItem(UNDO_KEY);
+  const p = raw && JSON.parse(raw);
+  if(Array.isArray(p)) undoStack = p.filter(s=> s && s.kind==="put" && s.game && typeof s.label==="string");
+}catch(e){ undoStack = []; }
+
+function persistUndo(){
+  const keep = undoStack.filter(s=>s.kind==="put");
+  try{ localStorage.setItem(UNDO_KEY, JSON.stringify(keep)); }
+  catch(e){ try{ localStorage.removeItem(UNDO_KEY); }catch(e2){} }
+}
+function pushUndo(step){
+  undoStack.push(step);
+  while(undoStack.length > UNDO_MAX) undoStack.shift();
+  persistUndo();
+  showUndo();
+}
+function undoPut(game, index){
+  pushUndo({kind:"put", label:"removed " + trim(game.name,24), game:{...game}, index});
+}
+function undoReplace(label){
+  pushUndo({kind:"replace", label, games: games.map(g=>({...g}))});
+}
+function showUndo(){
+  const b = $("undoBtn");
+  const top = undoStack[undoStack.length-1];
+  b.hidden = !top;
+  if(top){
+    b.textContent = "↺ Undo — " + top.label;
+    b.title = top.kind === "put"
+      ? "Put " + top.game.name + " back on the shelf"
+      : "Put the shelf back as it was before you " + top.label;
+  }
+}
+function undo(){
+  const step = undoStack.pop();
+  if(!step) return;
+  persistUndo();
+  if(step.kind === "put"){
+    if(!games.some(g=>g.id === step.game.id)){
+      games.splice(Math.min(step.index, games.length), 0, step.game);
+    }
+    mark("Put back");
+  }else{
+    games = step.games;
+    mark("Undone");
+  }
+  picked = null; asking = null;
+  save(); render();
+  showUndo();
+}
+function trim(s, n){ return s.length > n ? s.slice(0, n-1) + "…" : s; }
 
 const fits = g => players>=g.min && players<=g.max
   && (!maxTime || g.time<=maxTime)
@@ -379,21 +469,45 @@ function render(){
   visible.forEach(g=>{
     const ok = fits(g);
     const el = document.createElement("div");
-    el.className = "tile " + (ok?"up":"down") + (picked && picked.id===g.id ? " hit":"");
+    const isAsking = asking === g.id;
+    el.className = "tile " + (ok?"up":"down") + (picked && picked.id===g.id ? " hit":"") + (isAsking ? " asking":"");
     const pips = g.weight
       ? Array.from({length:g.weight},(_,i)=>`<i style="background:${ok?TOKENS[i%4]:'rgba(33,28,21,.35)'}"></i>`).join("")
       : `<span class="unset">SET BRAIN</span>`;
+    const safe = g.name.replace(/</g,"&lt;");
     el.innerHTML = `
-      ${ok?`<button class="x" aria-label="Remove ${g.name}">✕</button>`:""}
-      <button class="pips" aria-label="Change brain weight for ${g.name}" title="Tap to change brain weight">${pips}</button>
-      <h3>${g.name.replace(/</g,"&lt;")}</h3>
-      <div class="meta">${g.min===g.max?g.min:g.min+"–"+g.max} players · ${g.time} min</div>`;
+      ${ok?`<button class="x" aria-label="Remove ${safe}">✕</button>`:""}
+      <button class="pips" aria-label="Change brain weight for ${safe}" title="Tap to change brain weight">${pips}</button>
+      <h3>${safe}</h3>
+      <div class="meta">${g.min===g.max?g.min:g.min+"–"+g.max} players · ${g.time} min</div>
+      ${isAsking ? `
+      <div class="confirm">
+        <div class="q">Take ${safe} off the shelf?</div>
+        <div class="row">
+          <button class="cbtn yes" aria-label="Yes, remove ${safe}">Remove</button>
+          <button class="cbtn no" aria-label="Keep ${safe}">Keep</button>
+        </div>
+      </div>` : ""}`;
+
     const x = el.querySelector(".x");
-    if(x) x.onclick = ()=>{
-      games = games.filter(o=>o.id!==g.id);
-      if(picked && picked.id===g.id) picked=null;
-      save(); render();
+    if(x) x.onclick = e=>{
+      e.stopPropagation();                 // don't trip the click-away handler
+      asking = g.id;
+      render();
+      const keep = document.querySelector(".tile.asking .cbtn.no");
+      if(keep) keep.focus();   // focus the safe option, never the destructive one
     };
+    if(isAsking){
+      el.querySelector(".confirm").onclick = e=> e.stopPropagation();
+      el.querySelector(".cbtn.yes").onclick = ()=>{
+        undoPut(g, games.findIndex(o=>o.id===g.id));
+        games = games.filter(o=>o.id!==g.id);
+        if(picked && picked.id===g.id) picked = null;
+        asking = null;
+        save(); render();
+      };
+      el.querySelector(".cbtn.no").onclick = ()=>{ asking = null; render(); };
+    }
     el.querySelector(".pips").onclick = ()=>{
       g.weight = !g.weight ? 1 : (g.weight>=5 ? null : g.weight+1);
       save(); render();
@@ -489,17 +603,33 @@ $("importFile").onchange = e=>{
     try{
       const p = JSON.parse(r.result);
       if(!Array.isArray(p)) throw new Error("bad");
-      games = p; picked = null; save(); render();
+      undoReplace("restored a backup over " + games.length + (games.length===1?" game":" games"));
+      games = p; picked = null; asking = null; save(); render();
     }catch{ alert("That file isn't a Punchboard backup. Pick the punchboard-shelf.json file you saved."); }
   };
   r.readAsText(f);
   e.target.value = "";
 };
 $("clearBtn").onclick = ()=>{
-  if(!confirm("Remove every game from the shelf? Back it up first if you want a copy.")) return;
-  games = []; picked = null; save(); render();
+  if(!games.length) return;
+  if(!confirm("Remove every game from the shelf? You can undo this, but backing up first is safer.")) return;
+  undoReplace("emptied the shelf (" + games.length + (games.length===1?" game":" games") + ")");
+  games = []; picked = null; asking = null; save(); render();
 };
 
+$("undoBtn").onclick = undo;
+
+/* click anywhere else, or press Escape, to back out of a Remove? prompt */
+document.addEventListener("click", ()=>{ if(asking){ asking = null; render(); } });
+document.addEventListener("keydown", e=>{
+  if(e.key === "Escape" && asking){ asking = null; render(); return; }
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !typing){
+    if(undoStack.length){ e.preventDefault(); undo(); }
+  }
+});
+
+showUndo();
 render();
 
 /* ---------- cloud sync ----------
@@ -599,7 +729,8 @@ render();
       ", last written " + clock(remote.updated) + ". Pick one — the other is discarded, " +
       "so back up first if you're unsure.";
     $("useCloud").onclick = ()=>{
-      games = remote.games; picked = null;
+      undoReplace("switched to the cloud shelf");
+      games = remote.games; picked = null; asking = null;
       nativeSave();
       localStorage.setItem(STAMP_KEY, String(remote.updated));
       setDirty(false);
