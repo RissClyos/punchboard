@@ -24,7 +24,6 @@
     -webkit-text-size-adjust:100%;
   }
   .wrap{max-width:940px;margin:0 auto;padding:0 18px;}
-  .display{font-family:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;}
   header{padding:34px 0 22px;}
   h1{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:clamp(34px,7vw,58px);line-height:.95;margin:0;font-weight:800;}
   .dots{display:flex;gap:5px;margin-bottom:14px;}
@@ -36,13 +35,16 @@
   .chip{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid rgba(33,28,21,.35);background:transparent;color:var(--inkSoft);border-radius:999px;padding:6px 12px;transition:all .14s ease;}
   .chip:hover{border-color:var(--ink);color:var(--ink);}
   .chip.on{background:var(--ink);border-color:var(--ink);color:var(--cream);}
-  .pickrow{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:22px 0;}
+  .pickrow{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:22px 0 14px;}
   .btn{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:16px;background:var(--red);color:var(--cream);border:none;border-radius:3px;padding:14px 22px;cursor:pointer;box-shadow:0 4px 0 #8E2019;transition:transform .1s ease,box-shadow .1s ease;}
   .btn:hover:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #8E2019;}
   .btn:disabled{background:var(--inkSoft);box-shadow:0 4px 0 rgba(33,28,21,.4);cursor:not-allowed;opacity:.6;}
-  #result{min-height:30px;}
-  #pickName{font-size:26px;font-weight:800;line-height:1.1;}
-  .sheet{background:var(--boardDark);border-radius:4px;padding:14px;box-shadow:inset 0 0 0 2px rgba(33,28,21,.18);display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));}
+  .btn.ghost{background:var(--blue);box-shadow:0 4px 0 #12405E;}
+  .btn.ghost:hover:not(:disabled){box-shadow:0 2px 0 #12405E;}
+  #pickName{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;line-height:1.1;}
+  .findrow{padding-bottom:16px;}
+  #find{max-width:320px;}
+  .sheet{background:var(--boardDark);border-radius:4px;padding:14px;box-shadow:inset 0 0 0 2px rgba(33,28,21,.18);display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));min-height:80px;}
   .tile{position:relative;border:none;border-radius:3px;padding:12px 12px 10px;color:var(--ink);transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease,filter .18s ease;}
   .tile.up{background:var(--cream);box-shadow:0 4px 0 rgba(33,28,21,.45),0 6px 12px rgba(33,28,21,.22);transform:translateY(-3px);}
   .tile.up:hover{transform:translateY(-6px);box-shadow:0 7px 0 rgba(33,28,21,.45),0 10px 18px rgba(33,28,21,.25);}
@@ -50,17 +52,22 @@
   .tile.hit{outline:3px solid var(--red);outline-offset:2px;}
   .tile h3{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:600;line-height:1.15;margin:0 0 8px;}
   .meta{font-size:12px;color:var(--inkSoft);font-weight:500;}
-  .pips{display:flex;gap:3px;margin-bottom:8px;}
+  .pips{display:flex;gap:3px;margin-bottom:8px;background:none;border:none;padding:0;cursor:pointer;align-items:center;}
   .pips i{width:6px;height:6px;border-radius:50%;display:block;}
+  .pips .unset{font-size:10px;color:var(--red);font-weight:600;letter-spacing:.06em;}
   .x{position:absolute;top:6px;right:6px;border:none;background:transparent;color:var(--inkSoft);cursor:pointer;font-size:15px;line-height:1;padding:3px 5px;border-radius:3px;opacity:0;transition:opacity .15s;}
   .tile.up:hover .x,.x:focus{opacity:1;}
   .x:hover{background:rgba(194,53,44,.15);color:var(--red);}
   .panel{background:var(--cream);border-radius:3px;padding:16px;box-shadow:0 3px 0 rgba(33,28,21,.35);margin-top:22px;}
   .in{font-family:inherit;font-size:16px;width:100%;background:#fff;color:var(--ink);border:1.5px solid rgba(33,28,21,.3);border-radius:3px;padding:9px 10px;}
+  textarea.in{min-height:110px;resize:vertical;font-size:13px;}
   .grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:10px;margin-top:10px;}
-  .in:focus,.chip:focus-visible,.btn:focus-visible,.x:focus-visible{outline:3px solid var(--blue);outline-offset:2px;}
+  .in:focus,.chip:focus-visible,.btn:focus-visible,.x:focus-visible,.pips:focus-visible{outline:3px solid var(--blue);outline-offset:2px;}
   footer{margin-top:28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .warn{font-size:13px;color:var(--red);margin-top:12px;}
+  .note{font-size:13px;color:var(--inkSoft);line-height:1.5;margin:10px 0 0;}
+  .steps{font-size:13px;color:var(--inkSoft);line-height:1.6;padding-left:18px;margin:8px 0 14px;}
+  .empty{grid-column:1/-1;text-align:center;color:var(--ink);opacity:.65;font-size:14px;padding:22px 10px;}
   @media (prefers-reduced-motion: reduce){*{transition:none !important;}}
 </style>
 </head>
@@ -86,10 +93,18 @@
     <div id="result"><div class="meta" id="count"></div></div>
   </section>
 
+  <section class="findrow">
+    <input class="in" id="find" placeholder="Find a game on the shelf" />
+  </section>
+
   <div class="sheet" id="sheet"></div>
 
   <section>
-    <button class="chip" id="showAdd" style="margin-top:22px">+ Add a game</button>
+    <div class="chips" style="margin-top:22px">
+      <button class="chip" id="showAdd">+ Add one game</button>
+      <button class="chip" id="showImport">↓ Import from BoardGameGeek</button>
+    </div>
+
     <div class="panel" id="addPanel" hidden>
       <div class="label">New game</div>
       <input class="in" id="gName" placeholder="Game name" style="margin-top:10px" />
@@ -104,6 +119,26 @@
         <button class="chip" id="cancelAdd">Cancel</button>
       </div>
     </div>
+
+    <div class="panel" id="importPanel" hidden>
+      <div class="label">Import your collection</div>
+      <ol class="steps">
+        <li>Sign in at boardgamegeek.com and open your own collection.</li>
+        <li>Export it (CSV or XML) — this works without registering an app.</li>
+        <li>Pick the file below, or paste the contents in.</li>
+      </ol>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="chip" id="pickFile">Choose file</button>
+        <input type="file" id="collFile" accept=".csv,.xml,text/csv,text/xml,application/xml" hidden />
+      </div>
+      <textarea class="in" id="collPaste" placeholder="…or paste the CSV / XML here"></textarea>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn ghost" id="runImport" style="font-size:14px;padding:10px 18px">Read collection</button>
+        <button class="chip" id="cancelImport">Cancel</button>
+      </div>
+      <p class="note" id="importNote"></p>
+    </div>
+
     <p class="warn" id="warn" hidden>This browser won't let the shelf save, so it resets on reload. Use Back up shelf to keep a copy.</p>
   </section>
 
@@ -111,6 +146,7 @@
     <button class="chip" id="exportBtn">Back up shelf</button>
     <button class="chip" id="importBtn">Restore backup</button>
     <input type="file" id="importFile" accept="application/json" hidden />
+    <button class="chip" id="clearBtn">Empty the shelf</button>
     <span class="meta" id="saveState"></span>
   </footer>
 </div>
@@ -133,7 +169,7 @@ const SEED = [
 const TIMES = [{v:0,l:"Any"},{v:30,l:"30 min"},{v:60,l:"1 hr"},{v:90,l:"90 min"}];
 const WEIGHTS = [
   {v:"any",l:"Any",t:()=>true},
-  {v:"light",l:"Light",t:w=>w<=2},
+  {v:"light",l:"Light",t:w=>w&&w<=2},
   {v:"mid",l:"Medium",t:w=>w===3},
   {v:"heavy",l:"Heavy",t:w=>w>=4}
 ];
@@ -141,28 +177,147 @@ const WEIGHTS = [
 let canSave = true;
 function load(){
   try{ const raw = localStorage.getItem(KEY); const p = raw && JSON.parse(raw);
-    if(Array.isArray(p) && p.length) return p; }
+    if(Array.isArray(p)) return p; }
   catch(e){ canSave = false; }
   return SEED.slice();
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(games)); mark("Saved"); }
-  catch(e){ canSave = false; document.getElementById("warn").hidden = false; mark(""); }
+  catch(e){ canSave = false; document.getElementById("warn").hidden = false; }
 }
 function mark(t){
   const el = document.getElementById("saveState");
   el.textContent = t;
   if(t){ clearTimeout(mark._t); mark._t = setTimeout(()=>{el.textContent="";},1600); }
 }
+const $ = id => document.getElementById(id);
 
 let games = load();
-let players = 4, maxTime = 0, weight = "any", picked = null;
-if(!canSave) document.getElementById("warn").hidden = false;
+let players = 4, maxTime = 0, weight = "any", picked = null, find = "";
+if(!canSave) $("warn").hidden = false;
 
 const fits = g => players>=g.min && players<=g.max
   && (!maxTime || g.time<=maxTime)
   && WEIGHTS.find(w=>w.v===weight).t(g.weight);
+const shown = g => !find || g.name.toLowerCase().includes(find);
 
+/* ---------- collection parsing ---------- */
+const ALIAS = {
+  name:["objectname","name","title","primaryname","game"],
+  min:["minplayers","min players","minplayer","min"],
+  max:["maxplayers","max players","maxplayer","max"],
+  time:["playingtime","maxplaytime","playtime","minplaytime","time","avgtime","length"],
+  weight:["avgweight","averageweight","weight","complexity","avg weight"],
+  own:["own","owned"]
+};
+const norm = s => String(s||"").trim().toLowerCase().replace(/[_-]+/g," ");
+function matchCol(header){
+  const map = {};
+  header.forEach((h,i)=>{
+    const n = norm(h);
+    for(const key in ALIAS){
+      if(map[key]!==undefined) continue;
+      if(ALIAS[key].some(a=>n===a)) map[key]=i;
+    }
+  });
+  header.forEach((h,i)=>{
+    const n = norm(h);
+    for(const key in ALIAS){
+      if(map[key]!==undefined) continue;
+      if(ALIAS[key].some(a=>n.includes(a))) map[key]=i;
+    }
+  });
+  return map;
+}
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=c;
+    } else if(c==='"') q=true;
+    else if(c===","){ row.push(cell); cell=""; }
+    else if(c==="\n"){ row.push(cell); rows.push(row); row=[]; cell=""; }
+    else if(c!=="\r") cell+=c;
+  }
+  if(cell.length||row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(c=>c.trim()!==""));
+}
+function clampWeight(v){
+  const n = parseFloat(v);
+  if(!isFinite(n) || n<=0) return null;
+  return Math.min(5, Math.max(1, Math.round(n)));
+}
+function fromCSV(text){
+  const rows = parseCSV(text);
+  if(rows.length<2) return [];
+  const map = matchCol(rows[0]);
+  if(map.name===undefined) return [];
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    const name = (r[map.name]||"").trim();
+    if(!name) continue;
+    if(map.own!==undefined){
+      const o = norm(r[map.own]);
+      if(o==="0"||o==="false"||o==="no") continue;
+    }
+    const min = Math.max(1, parseInt(r[map.min],10) || 1);
+    const max = Math.max(min, parseInt(r[map.max],10) || min);
+    const time = Math.max(5, parseInt(r[map.time],10) || 45);
+    out.push({name,min,max,time,weight:clampWeight(r[map.weight])});
+  }
+  return out;
+}
+function fromXML(text){
+  const doc = new DOMParser().parseFromString(text,"text/xml");
+  if(doc.querySelector("parsererror")) return [];
+  const out=[];
+  doc.querySelectorAll("item").forEach(it=>{
+    const nameEl = it.querySelector("name");
+    const name = (nameEl && (nameEl.textContent.trim() || nameEl.getAttribute("value"))) || "";
+    if(!name) return;
+    const status = it.querySelector("status");
+    if(status && status.getAttribute("own")==="0") return;
+    const st = it.querySelector("stats");
+    const gi = k => {
+      const v = st && st.getAttribute(k);
+      if(v) return v;
+      const el = it.querySelector(k);
+      return el ? (el.getAttribute("value") || el.textContent) : null;
+    };
+    const min = Math.max(1, parseInt(gi("minplayers"),10) || 1);
+    const max = Math.max(min, parseInt(gi("maxplayers"),10) || min);
+    const time = Math.max(5, parseInt(gi("playingtime"),10) || parseInt(gi("maxplaytime"),10) || 45);
+    const rating = it.querySelector("averageweight");
+    out.push({
+      name, min, max, time,
+      weight: clampWeight(gi("averageweight") || (rating && rating.getAttribute("value")))
+    });
+  });
+  return out;
+}
+function ingest(text){
+  const t = text.trim();
+  if(!t) return {added:0,skipped:0,noWeight:0,err:"Nothing to read — pick a file or paste the export in."};
+  let parsed = t.startsWith("<") ? fromXML(t) : fromCSV(t);
+  if(!parsed.length && !t.startsWith("<")) parsed = fromXML(t);
+  if(!parsed.length) return {added:0,skipped:0,noWeight:0,err:"Couldn't find any games in that. It should be the CSV or XML export of a BGG collection."};
+  const have = new Set(games.map(g=>g.name.toLowerCase()));
+  let added=0, skipped=0, noWeight=0;
+  parsed.forEach(p=>{
+    if(have.has(p.name.toLowerCase())){ skipped++; return; }
+    have.add(p.name.toLowerCase());
+    if(p.weight===null) noWeight++;
+    games.push({id:"i"+Date.now()+"_"+added, ...p});
+    added++;
+  });
+  if(added) save();
+  return {added,skipped,noWeight,err:null};
+}
+
+/* ---------- rendering ---------- */
 function chips(host, items, current, onPick){
   host.innerHTML = "";
   items.forEach(it=>{
@@ -175,22 +330,33 @@ function chips(host, items, current, onPick){
 }
 
 function render(){
-  chips(document.getElementById("playerChips"),
-    [2,3,4,5,6,7,8].map(n=>({v:n,l:String(n)})), players, v=>{players=v;});
-  chips(document.getElementById("timeChips"), TIMES, maxTime, v=>{maxTime=v;});
-  chips(document.getElementById("weightChips"), WEIGHTS, weight, v=>{weight=v;});
+  chips($("playerChips"), [2,3,4,5,6,7,8].map(n=>({v:n,l:String(n)})), players, v=>{players=v;});
+  chips($("timeChips"), TIMES, maxTime, v=>{maxTime=v;});
+  chips($("weightChips"), WEIGHTS, weight, v=>{weight=v;});
 
-  const sheet = document.getElementById("sheet");
+  const sheet = $("sheet");
   sheet.innerHTML = "";
-  games.forEach(g=>{
+  const visible = games.filter(shown);
+
+  if(!visible.length){
+    const d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = games.length
+      ? "No game on the shelf matches that name."
+      : "The shelf is empty. Add a game or import your BGG collection.";
+    sheet.appendChild(d);
+  }
+
+  visible.forEach(g=>{
     const ok = fits(g);
     const el = document.createElement("div");
     el.className = "tile " + (ok?"up":"down") + (picked && picked.id===g.id ? " hit":"");
-    const pips = Array.from({length:g.weight},(_,i)=>
-      `<i style="background:${ok?TOKENS[i%4]:'rgba(33,28,21,.35)'}"></i>`).join("");
+    const pips = g.weight
+      ? Array.from({length:g.weight},(_,i)=>`<i style="background:${ok?TOKENS[i%4]:'rgba(33,28,21,.35)'}"></i>`).join("")
+      : `<span class="unset">SET BRAIN</span>`;
     el.innerHTML = `
       ${ok?`<button class="x" aria-label="Remove ${g.name}">✕</button>`:""}
-      <div class="pips">${pips}</div>
+      <button class="pips" aria-label="Change brain weight for ${g.name}" title="Tap to change brain weight">${pips}</button>
       <h3>${g.name.replace(/</g,"&lt;")}</h3>
       <div class="meta">${g.min===g.max?g.min:g.min+"–"+g.max} players · ${g.time} min</div>`;
     const x = el.querySelector(".x");
@@ -199,63 +365,85 @@ function render(){
       if(picked && picked.id===g.id) picked=null;
       save(); render();
     };
+    el.querySelector(".pips").onclick = ()=>{
+      g.weight = !g.weight ? 1 : (g.weight>=5 ? null : g.weight+1);
+      save(); render();
+    };
     sheet.appendChild(el);
   });
 
   const matches = games.filter(fits);
-  document.getElementById("punch").disabled = !matches.length;
-  const res = document.getElementById("result");
-  res.innerHTML = picked
-    ? `<div class="label">Tonight</div><div class="display" id="pickName">${picked.name.replace(/</g,"&lt;")}</div>`
+  $("punch").disabled = !matches.length;
+  $("result").innerHTML = picked
+    ? `<div class="label">Tonight</div><div id="pickName">${picked.name.replace(/</g,"&lt;")}</div>`
     : `<div class="meta">${matches.length} of ${games.length} fit right now.</div>`;
 }
 
-document.getElementById("punch").onclick = ()=>{
+/* ---------- actions ---------- */
+$("punch").onclick = ()=>{
   const m = games.filter(fits);
   if(!m.length) return;
-  const btn = document.getElementById("punch");
-  btn.disabled = true; btn.textContent = "Punching…";
+  const btn = $("punch");
+  btn.textContent = "Punching…";
   let n = 0;
   const tick = setInterval(()=>{
     picked = m[Math.floor(Math.random()*m.length)];
     render();
-    document.getElementById("punch").disabled = true;
-    document.getElementById("punch").textContent = "Punching…";
+    $("punch").disabled = true;
+    $("punch").textContent = "Punching…";
     if(++n>9){
       clearInterval(tick);
-      document.getElementById("punch").textContent = "Punch one out";
+      $("punch").textContent = "Punch one out";
       render();
     }
   },70);
 };
 
-document.getElementById("showAdd").onclick = ()=>{
-  document.getElementById("addPanel").hidden = false;
-  document.getElementById("showAdd").hidden = true;
-  document.getElementById("gName").focus();
-};
-document.getElementById("cancelAdd").onclick = ()=>{
-  document.getElementById("addPanel").hidden = true;
-  document.getElementById("showAdd").hidden = false;
-};
-document.getElementById("saveGame").onclick = ()=>{
-  const name = document.getElementById("gName").value.trim();
-  if(!name){ document.getElementById("gName").focus(); return; }
-  const min = Math.max(1, +document.getElementById("gMin").value || 1);
-  const max = Math.max(min, +document.getElementById("gMax").value || min);
+$("find").oninput = e=>{ find = e.target.value.trim().toLowerCase(); render(); };
+
+$("showAdd").onclick = ()=>{ $("addPanel").hidden=false; $("importPanel").hidden=true; $("gName").focus(); };
+$("cancelAdd").onclick = ()=>{ $("addPanel").hidden=true; };
+$("showImport").onclick = ()=>{ $("importPanel").hidden=false; $("addPanel").hidden=true; };
+$("cancelImport").onclick = ()=>{ $("importPanel").hidden=true; $("importNote").textContent=""; };
+
+$("saveGame").onclick = ()=>{
+  const name = $("gName").value.trim();
+  if(!name){ $("gName").focus(); return; }
+  const min = Math.max(1, +$("gMin").value || 1);
+  const max = Math.max(min, +$("gMax").value || min);
   games.push({
     id:"u"+Date.now(), name, min, max,
-    time: Math.max(5, +document.getElementById("gTime").value || 30),
-    weight: Math.min(5, Math.max(1, +document.getElementById("gWeight").value || 2))
+    time: Math.max(5, +$("gTime").value || 30),
+    weight: Math.min(5, Math.max(1, +$("gWeight").value || 2))
   });
   save();
-  document.getElementById("gName").value = "";
-  document.getElementById("addPanel").hidden = true;
-  document.getElementById("showAdd").hidden = false;
+  $("gName").value = "";
+  $("addPanel").hidden = true;
   render();
 };
 
-document.getElementById("exportBtn").onclick = ()=>{
+$("pickFile").onclick = ()=> $("collFile").click();
+$("collFile").onchange = e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ $("collPaste").value = r.result; $("importNote").textContent = "Loaded " + f.name + " — now tap Read collection."; };
+  r.readAsText(f);
+  e.target.value = "";
+};
+$("runImport").onclick = ()=>{
+  const res = ingest($("collPaste").value);
+  const note = $("importNote");
+  if(res.err){ note.textContent = res.err; return; }
+  let msg = "Added " + res.added + (res.added===1?" game":" games") + ".";
+  if(res.skipped) msg += " Skipped " + res.skipped + " already on the shelf.";
+  if(res.noWeight) msg += " " + res.noWeight + " came through without a complexity — tap the dots on those tiles to set it.";
+  note.textContent = msg;
+  $("collPaste").value = "";
+  render();
+};
+
+$("exportBtn").onclick = ()=>{
   const blob = new Blob([JSON.stringify(games,null,2)],{type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -263,8 +451,8 @@ document.getElementById("exportBtn").onclick = ()=>{
   a.click();
   URL.revokeObjectURL(a.href);
 };
-document.getElementById("importBtn").onclick = ()=> document.getElementById("importFile").click();
-document.getElementById("importFile").onchange = e=>{
+$("importBtn").onclick = ()=> $("importFile").click();
+$("importFile").onchange = e=>{
   const f = e.target.files[0];
   if(!f) return;
   const r = new FileReader();
@@ -277,6 +465,10 @@ document.getElementById("importFile").onchange = e=>{
   };
   r.readAsText(f);
   e.target.value = "";
+};
+$("clearBtn").onclick = ()=>{
+  if(!confirm("Remove every game from the shelf? Back it up first if you want a copy.")) return;
+  games = []; picked = null; save(); render();
 };
 
 render();
