@@ -103,6 +103,7 @@
     <div class="chips" style="margin-top:22px">
       <button class="chip" id="showAdd">+ Add one game</button>
       <button class="chip" id="showImport">↓ Import from BoardGameGeek</button>
+      <button class="chip" id="showSync">↔ Cloud sync</button>
     </div>
 
     <div class="panel" id="addPanel" hidden>
@@ -137,6 +138,34 @@
         <button class="chip" id="cancelImport">Cancel</button>
       </div>
       <p class="note" id="importNote"></p>
+    </div>
+
+    <div class="panel" id="syncPanel" hidden>
+      <div class="label">Cloud sync</div>
+      <p class="note">One shelf across every browser you use. Enter the same two values on each device — the first one you set up sends its shelf to the cloud, the rest pull it down.</p>
+      <div style="margin-top:12px">
+        <div class="label" style="font-size:10px">Worker URL</div>
+        <input class="in" id="syncUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://punchboard-sync.you.workers.dev" />
+      </div>
+      <div style="margin-top:10px">
+        <div class="label" style="font-size:10px">Shelf key</div>
+        <input class="in" id="syncKey" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="the passphrase you set on the Worker" />
+      </div>
+      <div id="syncConflict" hidden style="margin-top:14px;padding:12px;border-radius:3px;background:rgba(194,53,44,.12);box-shadow:inset 0 0 0 2px rgba(194,53,44,.45)">
+        <div class="label" style="color:var(--red)">Two shelves have diverged</div>
+        <p class="note" id="conflictText" style="margin-top:6px"></p>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn ghost" id="useCloud" style="font-size:14px;padding:10px 18px">Use the cloud shelf</button>
+          <button class="chip" id="useLocal">Keep this device's</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn" id="syncSave" style="font-size:14px;padding:10px 18px">Turn on sync</button>
+        <button class="btn ghost" id="syncNow" style="font-size:14px;padding:10px 18px">Sync now</button>
+        <button class="chip" id="syncOff">Turn off</button>
+        <button class="chip" id="cancelSync">Close</button>
+      </div>
+      <p class="note" id="syncNote"></p>
     </div>
 
     <p class="warn" id="warn" hidden>This browser won't let the shelf save, so it resets on reload. Use Back up shelf to keep a copy.</p>
@@ -472,6 +501,168 @@ $("clearBtn").onclick = ()=>{
 };
 
 render();
+
+/* ---------- cloud sync ----------
+   The shelf lives in localStorage as before; this mirrors it to a small
+   Cloudflare Worker so every browser sees the same collection. With no
+   Worker URL and key entered, none of this does anything and the app
+   behaves exactly as it did before.                                     */
+(function(){
+  const CFG_KEY   = "punchboard.sync.cfg.v1";   // { url, key } — per device
+  const STAMP_KEY = "punchboard.sync.stamp";    // remote version we last agreed with
+  const DIRTY_KEY = "punchboard.sync.dirty";    // set while local edits are unpushed
+
+  let cfg = {}, busy = false, pushTimer = null;
+  try{ cfg = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; }catch(e){ cfg = {}; }
+
+  const on      = () => !!(cfg.url && cfg.key);
+  const url     = () => cfg.url.replace(/\/+$/,"") + "/shelf";
+  const isDirty = () => localStorage.getItem(DIRTY_KEY) === "1";
+  const setDirty= v  => v ? localStorage.setItem(DIRTY_KEY,"1") : localStorage.removeItem(DIRTY_KEY);
+  const note    = t  => { $("syncNote").textContent = t || ""; };
+  const clock   = ms => { try{ return new Date(ms).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
+                          catch(e){ return ""; } };
+
+  function label(){ $("showSync").textContent = on() ? "↔ Cloud sync · on" : "↔ Cloud sync"; }
+
+  /* every existing save() still writes localStorage first, then queues a push */
+  const nativeSave = save;
+  save = function(){
+    const r = nativeSave.apply(this, arguments);
+    if(on()){ setDirty(true); clearTimeout(pushTimer); pushTimer = setTimeout(push, 1200); }
+    return r;
+  };
+
+  function call(method, body){
+    return fetch(url(), {
+      method,
+      headers: {"Content-Type":"application/json","X-Shelf-Key":cfg.key},
+      body: body ? JSON.stringify(body) : undefined,
+      cache: "no-store"
+    }).then(r => r.json().catch(()=>({})).then(d=>{
+      if(!r.ok) throw new Error(d.error || ("HTTP "+r.status));
+      return d;
+    }));
+  }
+
+  function push(){
+    if(!on() || busy) return Promise.resolve();
+    busy = true; mark("Syncing…");
+    return call("PUT", {games})
+      .then(d=>{
+        localStorage.setItem(STAMP_KEY, String(d.updated));
+        setDirty(false);
+        mark("Synced");
+        note("Sent " + d.count + (d.count===1?" game":" games") + " to the cloud at " + clock(d.updated) + ".");
+      })
+      .catch(e => note("Couldn't reach the cloud: " + e.message + " The shelf is still safe on this device."))
+      .then(()=>{ busy = false; });
+  }
+
+  function pull(quiet){
+    if(!on() || busy) return Promise.resolve();
+    busy = true;
+    return call("GET")
+      .then(d=>{
+        if(!d.games){ busy = false; return push(); }      // nothing up there yet — seed it
+
+        const stamp = Number(localStorage.getItem(STAMP_KEY) || 0);
+
+        if(d.updated > stamp && isDirty()){ busy = false; return conflict(d); }
+
+        if(d.updated > stamp){
+          games = d.games; picked = null;
+          nativeSave();                                    // write through without re-pushing
+          localStorage.setItem(STAMP_KEY, String(d.updated));
+          setDirty(false);
+          render();
+          mark("Updated");
+          note("Pulled " + d.games.length + " games from the cloud.");
+          return;
+        }
+        if(isDirty()){ busy = false; return push(); }
+        if(!quiet) note("Up to date — " + d.games.length + " games, last written " + clock(d.updated) + ".");
+      })
+      .catch(e => { if(!quiet) note("Couldn't reach the cloud: " + e.message); })
+      .then(()=>{ busy = false; });
+  }
+
+  /* both sides changed since they last agreed — never guess, ask */
+  function conflict(remote){
+    $("syncPanel").hidden = false;
+    $("addPanel").hidden = true;
+    $("importPanel").hidden = true;
+    $("syncConflict").hidden = false;
+    $("conflictText").textContent =
+      "This device has " + games.length + (games.length===1?" game":" games") +
+      " with changes that never reached the cloud. The cloud has " + remote.games.length +
+      ", last written " + clock(remote.updated) + ". Pick one — the other is discarded, " +
+      "so back up first if you're unsure.";
+    $("useCloud").onclick = ()=>{
+      games = remote.games; picked = null;
+      nativeSave();
+      localStorage.setItem(STAMP_KEY, String(remote.updated));
+      setDirty(false);
+      $("syncConflict").hidden = true;
+      render();
+      note("Now using the cloud shelf.");
+    };
+    $("useLocal").onclick = ()=>{
+      $("syncConflict").hidden = true;
+      push();
+    };
+  }
+
+  /* ---------- panel wiring ---------- */
+  $("showSync").onclick = ()=>{
+    $("syncPanel").hidden = false;
+    $("addPanel").hidden = true;
+    $("importPanel").hidden = true;
+    $("syncUrl").value = cfg.url || "";
+    $("syncKey").value = cfg.key || "";
+    note(on() ? "" : "Not set up on this device yet.");
+  };
+  $("cancelSync").onclick = ()=>{ $("syncPanel").hidden = true; note(""); };
+
+  $("syncSave").onclick = ()=>{
+    const u = $("syncUrl").value.trim(), k = $("syncKey").value.trim();
+    if(!/^https:\/\//i.test(u)){ note("The Worker URL has to start with https:// — otherwise the shelf key would travel in the clear."); $("syncUrl").focus(); return; }
+    if(!k){ note("Enter the shelf key you set on the Worker."); $("syncKey").focus(); return; }
+    cfg = {url:u, key:k};
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    label();
+    note("Checking the cloud…");
+    pull(false);
+  };
+
+  $("syncNow").onclick = ()=>{
+    if(!on()){ note("Enter the Worker URL and shelf key first, then Turn on sync."); return; }
+    note("Checking the cloud…");
+    pull(false);
+  };
+
+  $("syncOff").onclick = ()=>{
+    cfg = {};
+    localStorage.removeItem(CFG_KEY);
+    localStorage.removeItem(STAMP_KEY);
+    setDirty(false);
+    $("syncUrl").value = ""; $("syncKey").value = "";
+    $("syncConflict").hidden = true;
+    label();
+    note("Sync off. The games stay on this device — only the settings were forgotten.");
+  };
+
+  /* ---------- boot ----------
+     The listeners go on unconditionally: they check on() when they fire, so
+     sync switched on through the panel starts refreshing straight away
+     rather than only after the next reload.                              */
+  label();
+  document.addEventListener("visibilitychange", ()=>{
+    if(on() && document.visibilityState === "visible") pull(true);
+  });
+  window.addEventListener("online", ()=>{ if(on()) pull(true); });
+  if(on()) pull(true);
+})();
 </script>
 </body>
 </html>
