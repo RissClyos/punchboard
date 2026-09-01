@@ -806,13 +806,36 @@ render();
     if(!/^https:\/\//i.test(u)){ note("The Worker URL has to start with https:// — otherwise the passphrase would travel in the clear."); $("syncUrl").focus(); return; }
     if(!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(n)){ note("Your name: start with a letter or number, then letters/numbers/-/_, up to 32 characters."); $("syncName").focus(); return; }
     if(!k){ note("Pick a passphrase — the first sync claims your name with it, and you'll need the same one on your other devices."); $("syncKey").focus(); return; }
+
+    const renaming = on() && cfg.url === u && cfg.name !== n;
+    const old = renaming ? {...cfg} : null;
+
     cfg = {url:u, key:k, name:n};
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
     localStorage.removeItem(STAMP_KEY);
     setDirty(false);
     label();
-    note("Checking the cloud…");
-    pull(false);
+    if(old){
+      // Renaming: this device's games are already the source of truth for
+      // the old name, so push them under the new name, then remove the old
+      // shelf. A plain pull() would be wrong here — there's nothing to pull
+      // for a name that's never been claimed.
+      note("Moving your shelf to \"" + n + "\"…");
+      push().then(()=>{
+        fetch(old.url.replace(/\/+$/,"") + "/shelf/" + encodeURIComponent(old.name), {
+          method: "DELETE",
+          headers: {"X-Shelf-Key": old.key},
+          cache: "no-store"
+        })
+          .then(()=> note("Renamed \"" + old.name + "\" to \"" + n + "\"."))
+          .catch(()=> note("Saved as \"" + n + "\", but couldn't clean up the old \"" + old.name + "\" shelf. It'll still show up under Everyone."));
+      });
+    } else {
+      // First-time setup, or joining an existing name on a new device —
+      // pull first so an existing cloud shelf isn't clobbered.
+      note("Checking the cloud…");
+      pull(false);
+    }
   };
 
   $("syncNow").onclick = ()=>{
