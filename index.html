@@ -35,6 +35,7 @@
   .chip{font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid rgba(33,28,21,.35);background:transparent;color:var(--inkSoft);border-radius:999px;padding:6px 12px;transition:all .14s ease;}
   .chip:hover{border-color:var(--ink);color:var(--ink);}
   .chip.on{background:var(--ink);border-color:var(--ink);color:var(--cream);}
+  .chip:disabled{opacity:.4;cursor:not-allowed;}
   .pickrow{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:22px 0 14px;}
   .btn{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:16px;background:var(--red);color:var(--cream);border:none;border-radius:3px;padding:14px 22px;cursor:pointer;box-shadow:0 4px 0 #8E2019;transition:transform .1s ease,box-shadow .1s ease;}
   .btn:hover:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #8E2019;}
@@ -42,8 +43,8 @@
   .btn.ghost{background:var(--blue);box-shadow:0 4px 0 #12405E;}
   .btn.ghost:hover:not(:disabled){box-shadow:0 2px 0 #12405E;}
   #pickName{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;line-height:1.1;}
-  .findrow{padding-bottom:16px;}
-  #find{max-width:320px;}
+  .findrow{padding-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  #find{max-width:320px;flex:1 1 220px;}
   .sheet{background:var(--boardDark);border-radius:4px;padding:14px;box-shadow:inset 0 0 0 2px rgba(33,28,21,.18);display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));min-height:80px;}
   .tile{position:relative;border:none;border-radius:3px;padding:12px 12px 10px;color:var(--ink);transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease,filter .18s ease;}
   .tile.up{background:var(--cream);box-shadow:0 4px 0 rgba(33,28,21,.45),0 6px 12px rgba(33,28,21,.22);transform:translateY(-3px);}
@@ -52,7 +53,9 @@
   .tile.hit{outline:3px solid var(--red);outline-offset:2px;}
   .tile h3{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:600;line-height:1.15;margin:0 0 8px;}
   .meta{font-size:12px;color:var(--inkSoft);font-weight:500;}
+  .owner{font-size:11px;color:var(--inkSoft);opacity:.75;font-weight:600;margin-top:4px;letter-spacing:.02em;}
   .pips{display:flex;gap:3px;margin-bottom:8px;background:none;border:none;padding:0;cursor:pointer;align-items:center;}
+  .pips[disabled]{cursor:default;}
   .pips i{width:6px;height:6px;border-radius:50%;display:block;}
   .pips .unset{font-size:10px;color:var(--red);font-weight:600;letter-spacing:.06em;}
   .x{position:absolute;top:6px;right:6px;border:none;background:transparent;color:var(--inkSoft);cursor:pointer;font-size:15px;line-height:1;padding:3px 5px;border-radius:3px;opacity:0;transition:opacity .15s;}
@@ -60,7 +63,7 @@
   .x:hover{background:rgba(194,53,44,.15);color:var(--red);}
   .tile.asking .x{display:none;}
   .confirm{position:absolute;inset:0;border-radius:3px;background:var(--cream);box-shadow:inset 0 0 0 2px var(--red);
-           display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;text-align:center;}
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px;text-align:center;}
   .confirm .q{font-size:12px;font-weight:600;line-height:1.25;}
   .confirm .row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
   .cbtn{font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:999px;padding:6px 12px;border:1.5px solid transparent;}
@@ -107,6 +110,7 @@
 
   <section class="findrow">
     <input class="in" id="find" placeholder="Find a game on the shelf" />
+    <button class="chip" id="viewToggle" hidden>Mine</button>
   </section>
 
   <div class="sheet" id="sheet"></div>
@@ -154,14 +158,18 @@
 
     <div class="panel" id="syncPanel" hidden>
       <div class="label">Cloud sync</div>
-      <p class="note">One shelf across every browser you use. Enter the same two values on each device — the first one you set up sends its shelf to the cloud, the rest pull it down.</p>
+      <p class="note">Each person gets their own name and passphrase on the same Worker. Your shelf syncs across your own devices; switch to "Everyone" above the sheet to see the whole group's games merged together (read-only).</p>
       <div style="margin-top:12px">
         <div class="label" style="font-size:10px">Worker URL</div>
         <input class="in" id="syncUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://punchboard-sync.you.workers.dev" />
       </div>
       <div style="margin-top:10px">
-        <div class="label" style="font-size:10px">Shelf key</div>
-        <input class="in" id="syncKey" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="the passphrase you set on the Worker" />
+        <div class="label" style="font-size:10px">Your name</div>
+        <input class="in" id="syncName" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="e.g. chris (letters, numbers, - or _)" />
+      </div>
+      <div style="margin-top:10px">
+        <div class="label" style="font-size:10px">Your passphrase</div>
+        <input class="in" id="syncKey" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="only you use this — pick your own" />
       </div>
       <div id="syncConflict" hidden style="margin-top:14px;padding:12px;border-radius:3px;background:rgba(194,53,44,.12);box-shadow:inset 0 0 0 2px rgba(194,53,44,.45)">
         <div class="label" style="color:var(--red)">Two shelves have diverged</div>
@@ -195,6 +203,9 @@
 
 <script>
 const KEY = "punchboard.collection.v1";
+const CFG_KEY = "punchboard.sync.cfg.v1";     // { url, key, name } — per device
+const STAMP_KEY = "punchboard.sync.stamp";    // remote version we last agreed with
+const DIRTY_KEY = "punchboard.sync.dirty";    // set while local edits are unpushed
 const TOKENS = ["#C2352C","#1D5F8A","#DFA028","#3D7345"];
 const SEED = [
   {id:"s1",name:"Azul",min:2,max:4,time:40,weight:2},
@@ -236,38 +247,53 @@ const $ = id => document.getElementById(id);
 
 let games = load();
 let players = 4, maxTime = 0, weight = "any", picked = null, find = "";
-let asking = null;                 // id of the tile currently asking "Remove?"
+let asking = null; // id of the tile currently asking "Remove?"
+
+/* ---------- multi-shelf sync config & combined view ----------
+   cfg is shared between the plain sync logic below and the "Everyone"
+   combined view, both of which live at the top level so they can see
+   each other without awkward globals. */
+let cfg = {};
+try{ cfg = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; }catch(e){ cfg = {}; }
+const on = () => !!(cfg.url && cfg.key && cfg.name);
+const shelfUrl = () => cfg.url.replace(/\/+$/,"") + "/shelf/" + encodeURIComponent(cfg.name);
+const combinedUrl = () => cfg.url.replace(/\/+$/,"") + "/combined";
+
+let viewMode = "mine";       // "mine" | "everyone"
+let combinedGames = null;    // [{...game, owner}] once loaded
+let combinedLoading = false;
+
+function activeList(){
+  return viewMode === "everyone" ? (combinedGames || []) : games;
+}
+function tileKey(g){
+  return viewMode === "everyone" ? (g.owner + "::" + g.id) : g.id;
+}
+function loadCombined(){
+  if(!on()) return Promise.resolve();
+  combinedLoading = true; render();
+  return fetch(combinedUrl(), {cache:"no-store"})
+    .then(r=>r.json())
+    .then(d=>{ combinedGames = Array.isArray(d.games) ? d.games : []; })
+    .catch(()=>{ combinedGames = combinedGames || []; })
+    .then(()=>{ combinedLoading = false; render(); });
+}
+
 if(!canSave) $("warn").hidden = false;
 
 /* ---------- undo, for the destructive things only ----------
    Removing a game, emptying the shelf, restoring a backup and taking the
-   cloud's side in a sync conflict all snapshot the shelf first. Adding a
-   game and cycling brain pips don't — they're cheap to reverse by hand,
-   and keeping them out means Undo always points at something that
-   actually cost you something.                                          */
+   cloud's side in a sync conflict all snapshot the shelf first. Adds and
+   pip cycling don't — Undo always points at something that actually
+   cost you something. */
 const UNDO_KEY = "punchboard.undo.v1";
 const UNDO_MAX = 8;
 let undoStack = [];
-
-/* Two kinds of step, deliberately:
-
-   "put"     — one game came off the shelf. Undo puts that one game back
-               where it was, and doesn't care what else has changed since.
-               Safe to keep across reloads, so a deletion you notice
-               tomorrow is still recoverable.
-
-   "replace" — the whole shelf was swapped (emptied, a backup restored, a
-               sync conflict resolved). Undo can only restore the previous
-               array wholesale, which would throw away anything done since,
-               so these live in memory and die with the tab. Within the
-               session that did the damage, they're exactly right.        */
-
 try{
   const raw = localStorage.getItem(UNDO_KEY);
   const p = raw && JSON.parse(raw);
   if(Array.isArray(p)) undoStack = p.filter(s=> s && s.kind==="put" && s.game && typeof s.label==="string");
 }catch(e){ undoStack = []; }
-
 function persistUndo(){
   const keep = undoStack.filter(s=>s.kind==="put");
   try{ localStorage.setItem(UNDO_KEY, JSON.stringify(keep)); }
@@ -453,84 +479,102 @@ function render(){
   chips($("timeChips"), TIMES, maxTime, v=>{maxTime=v;});
   chips($("weightChips"), WEIGHTS, weight, v=>{weight=v;});
 
+  const combinedMode = viewMode === "everyone";
+  const toggle = $("viewToggle");
+  toggle.hidden = !on();
+  if(on()){
+    toggle.textContent = combinedMode
+      ? (combinedLoading ? "Everyone (loading…)" : "Everyone (" + (combinedGames?combinedGames.length:0) + ")")
+      : "Mine";
+    toggle.classList.toggle("on", combinedMode);
+  }
+  $("showAdd").disabled = combinedMode;
+  $("showImport").disabled = combinedMode;
+
   const sheet = $("sheet");
   sheet.innerHTML = "";
-  const visible = games.filter(shown);
+  const list = activeList();
+  const visible = list.filter(shown);
 
   if(!visible.length){
     const d = document.createElement("div");
     d.className = "empty";
-    d.textContent = games.length
-      ? "No game on the shelf matches that name."
-      : "The shelf is empty. Add a game or import your BGG collection.";
+    d.textContent = combinedMode
+      ? (combinedLoading ? "Loading everyone's shelves…" : (list.length ? "No game matches that name." : "No shelves have synced any games yet."))
+      : (games.length ? "No game on the shelf matches that name." : "The shelf is empty. Add a game or import your BGG collection.");
     sheet.appendChild(d);
   }
 
   visible.forEach(g=>{
     const ok = fits(g);
+    const key = tileKey(g);
     const el = document.createElement("div");
-    const isAsking = asking === g.id;
-    el.className = "tile " + (ok?"up":"down") + (picked && picked.id===g.id ? " hit":"") + (isAsking ? " asking":"");
+    const isAsking = !combinedMode && asking === g.id;
+    el.className = "tile " + (ok?"up":"down") + (picked && picked.__key===key ? " hit":"") + (isAsking ? " asking":"");
     const pips = g.weight
       ? Array.from({length:g.weight},(_,i)=>`<i style="background:${ok?TOKENS[i%4]:'rgba(33,28,21,.35)'}"></i>`).join("")
       : `<span class="unset">SET BRAIN</span>`;
     const safe = g.name.replace(/</g,"&lt;");
     el.innerHTML = `
-      ${ok?`<button class="x" aria-label="Remove ${safe}">✕</button>`:""}
-      <button class="pips" aria-label="Change brain weight for ${safe}" title="Tap to change brain weight">${pips}</button>
+      ${(!combinedMode && ok)?`<button class="x" aria-label="Remove ${safe}">✕</button>`:""}
+      <button class="pips" ${combinedMode?"disabled":""} aria-label="Change brain weight for ${safe}" title="${combinedMode?"":"Tap to change brain weight"}">${pips}</button>
       <h3>${safe}</h3>
       <div class="meta">${g.min===g.max?g.min:g.min+"–"+g.max} players · ${g.time} min</div>
+      ${combinedMode ? `<div class="owner">by ${String(g.owner||"?").replace(/</g,"&lt;")}</div>` : ""}
       ${isAsking ? `
-      <div class="confirm">
-        <div class="q">Take ${safe} off the shelf?</div>
-        <div class="row">
-          <button class="cbtn yes" aria-label="Yes, remove ${safe}">Remove</button>
-          <button class="cbtn no" aria-label="Keep ${safe}">Keep</button>
-        </div>
-      </div>` : ""}`;
-
-    const x = el.querySelector(".x");
-    if(x) x.onclick = e=>{
-      e.stopPropagation();                 // don't trip the click-away handler
-      asking = g.id;
-      render();
-      const keep = document.querySelector(".tile.asking .cbtn.no");
-      if(keep) keep.focus();   // focus the safe option, never the destructive one
-    };
-    if(isAsking){
-      el.querySelector(".confirm").onclick = e=> e.stopPropagation();
-      el.querySelector(".cbtn.yes").onclick = ()=>{
-        undoPut(g, games.findIndex(o=>o.id===g.id));
-        games = games.filter(o=>o.id!==g.id);
-        if(picked && picked.id===g.id) picked = null;
-        asking = null;
+        <div class="confirm">
+          <div class="q">Take ${safe} off the shelf?</div>
+          <div class="row">
+            <button class="cbtn yes" aria-label="Yes, remove ${safe}">Remove</button>
+            <button class="cbtn no" aria-label="Keep ${safe}">Keep</button>
+          </div>
+        </div>` : ""}`;
+    if(!combinedMode){
+      const x = el.querySelector(".x");
+      if(x) x.onclick = e=>{
+        e.stopPropagation(); // don't trip the click-away handler
+        asking = g.id;
+        render();
+        const keep = document.querySelector(".tile.asking .cbtn.no");
+        if(keep) keep.focus(); // focus the safe option, never the destructive one
+      };
+      if(isAsking){
+        el.querySelector(".confirm").onclick = e=> e.stopPropagation();
+        el.querySelector(".cbtn.yes").onclick = ()=>{
+          undoPut(g, games.findIndex(o=>o.id===g.id));
+          games = games.filter(o=>o.id!==g.id);
+          if(picked && picked.__key===key) picked = null;
+          asking = null;
+          save(); render();
+        };
+        el.querySelector(".cbtn.no").onclick = ()=>{ asking = null; render(); };
+      }
+      el.querySelector(".pips").onclick = ()=>{
+        g.weight = !g.weight ? 1 : (g.weight>=5 ? null : g.weight+1);
         save(); render();
       };
-      el.querySelector(".cbtn.no").onclick = ()=>{ asking = null; render(); };
     }
-    el.querySelector(".pips").onclick = ()=>{
-      g.weight = !g.weight ? 1 : (g.weight>=5 ? null : g.weight+1);
-      save(); render();
-    };
     sheet.appendChild(el);
   });
 
-  const matches = games.filter(fits);
+  const matches = list.filter(fits);
   $("punch").disabled = !matches.length;
   $("result").innerHTML = picked
     ? `<div class="label">Tonight</div><div id="pickName">${picked.name.replace(/</g,"&lt;")}</div>`
-    : `<div class="meta">${matches.length} of ${games.length} fit right now.</div>`;
+    : `<div class="meta">${matches.length} of ${list.length} fit right now.</div>`;
 }
 
 /* ---------- actions ---------- */
 $("punch").onclick = ()=>{
-  const m = games.filter(fits);
+  const list = activeList();
+  const m = list.filter(fits);
   if(!m.length) return;
   const btn = $("punch");
   btn.textContent = "Punching…";
   let n = 0;
   const tick = setInterval(()=>{
-    picked = m[Math.floor(Math.random()*m.length)];
+    const g = m[Math.floor(Math.random()*m.length)];
+    picked = {...g, __key: tileKey(g)};
     render();
     $("punch").disabled = true;
     $("punch").textContent = "Punching…";
@@ -544,9 +588,16 @@ $("punch").onclick = ()=>{
 
 $("find").oninput = e=>{ find = e.target.value.trim().toLowerCase(); render(); };
 
-$("showAdd").onclick = ()=>{ $("addPanel").hidden=false; $("importPanel").hidden=true; $("gName").focus(); };
+$("viewToggle").onclick = ()=>{
+  viewMode = viewMode === "mine" ? "everyone" : "mine";
+  picked = null;
+  if(viewMode === "everyone"){ loadCombined(); }
+  else{ render(); }
+};
+
+$("showAdd").onclick = ()=>{ if($("showAdd").disabled) return; $("addPanel").hidden=false; $("importPanel").hidden=true; $("gName").focus(); };
 $("cancelAdd").onclick = ()=>{ $("addPanel").hidden=true; };
-$("showImport").onclick = ()=>{ $("importPanel").hidden=false; $("addPanel").hidden=true; };
+$("showImport").onclick = ()=>{ if($("showImport").disabled) return; $("importPanel").hidden=false; $("addPanel").hidden=true; };
 $("cancelImport").onclick = ()=>{ $("importPanel").hidden=true; $("importNote").textContent=""; };
 
 $("saveGame").onclick = ()=>{
@@ -616,7 +667,6 @@ $("clearBtn").onclick = ()=>{
   undoReplace("emptied the shelf (" + games.length + (games.length===1?" game":" games") + ")");
   games = []; picked = null; asking = null; save(); render();
 };
-
 $("undoBtn").onclick = undo;
 
 /* click anywhere else, or press Escape, to back out of a Remove? prompt */
@@ -634,26 +684,21 @@ render();
 
 /* ---------- cloud sync ----------
    The shelf lives in localStorage as before; this mirrors it to a small
-   Cloudflare Worker so every browser sees the same collection. With no
-   Worker URL and key entered, none of this does anything and the app
-   behaves exactly as it did before.                                     */
+   Cloudflare Worker, one named shelf per person, so friends can each keep
+   their own collection in sync across their own devices, and the
+   "Everyone" toggle above the sheet can merge every shelf into one view.
+   With no Worker URL / name / passphrase entered, none of this does
+   anything and the app behaves exactly as it did before. */
 (function(){
-  const CFG_KEY   = "punchboard.sync.cfg.v1";   // { url, key } — per device
-  const STAMP_KEY = "punchboard.sync.stamp";    // remote version we last agreed with
-  const DIRTY_KEY = "punchboard.sync.dirty";    // set while local edits are unpushed
+  let busy = false, pushTimer = null;
 
-  let cfg = {}, busy = false, pushTimer = null;
-  try{ cfg = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; }catch(e){ cfg = {}; }
-
-  const on      = () => !!(cfg.url && cfg.key);
-  const url     = () => cfg.url.replace(/\/+$/,"") + "/shelf";
   const isDirty = () => localStorage.getItem(DIRTY_KEY) === "1";
-  const setDirty= v  => v ? localStorage.setItem(DIRTY_KEY,"1") : localStorage.removeItem(DIRTY_KEY);
-  const note    = t  => { $("syncNote").textContent = t || ""; };
-  const clock   = ms => { try{ return new Date(ms).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
-                          catch(e){ return ""; } };
+  const setDirty= v => v ? localStorage.setItem(DIRTY_KEY,"1") : localStorage.removeItem(DIRTY_KEY);
+  const note = t => { $("syncNote").textContent = t || ""; };
+  const clock = ms => { try{ return new Date(ms).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
+    catch(e){ return ""; } };
 
-  function label(){ $("showSync").textContent = on() ? "↔ Cloud sync · on" : "↔ Cloud sync"; }
+  function label(){ $("showSync").textContent = on() ? "↔ Cloud sync · " + cfg.name : "↔ Cloud sync"; }
 
   /* every existing save() still writes localStorage first, then queues a push */
   const nativeSave = save;
@@ -664,13 +709,13 @@ render();
   };
 
   function call(method, body){
-    return fetch(url(), {
+    return fetch(shelfUrl(), {
       method,
       headers: {"Content-Type":"application/json","X-Shelf-Key":cfg.key},
       body: body ? JSON.stringify(body) : undefined,
       cache: "no-store"
     }).then(r => r.json().catch(()=>({})).then(d=>{
-      if(!r.ok) throw new Error(d.error || ("HTTP "+r.status));
+      if(!r.ok) throw new Error(d.error || (typeof d === "string" ? d : ("HTTP "+r.status)));
       return d;
     }));
   }
@@ -683,7 +728,8 @@ render();
         localStorage.setItem(STAMP_KEY, String(d.updated));
         setDirty(false);
         mark("Synced");
-        note("Sent " + d.count + (d.count===1?" game":" games") + " to the cloud at " + clock(d.updated) + ".");
+        note("Sent " + d.count + (d.count===1?" game":" games") + " to the cloud as \"" + cfg.name + "\" at " + clock(d.updated) + ".");
+        if(viewMode === "everyone") loadCombined();
       })
       .catch(e => note("Couldn't reach the cloud: " + e.message + " The shelf is still safe on this device."))
       .then(()=>{ busy = false; });
@@ -694,15 +740,12 @@ render();
     busy = true;
     return call("GET")
       .then(d=>{
-        if(!d.games){ busy = false; return push(); }      // nothing up there yet — seed it
-
+        if(!d.games){ busy = false; return push(); } // nothing up there yet — seed it
         const stamp = Number(localStorage.getItem(STAMP_KEY) || 0);
-
         if(d.updated > stamp && isDirty()){ busy = false; return conflict(d); }
-
         if(d.updated > stamp){
           games = d.games; picked = null;
-          nativeSave();                                    // write through without re-pushing
+          nativeSave(); // write through without re-pushing
           localStorage.setItem(STAMP_KEY, String(d.updated));
           setDirty(false);
           render();
@@ -750,26 +793,33 @@ render();
     $("addPanel").hidden = true;
     $("importPanel").hidden = true;
     $("syncUrl").value = cfg.url || "";
+    $("syncName").value = cfg.name || "";
     $("syncKey").value = cfg.key || "";
     note(on() ? "" : "Not set up on this device yet.");
   };
   $("cancelSync").onclick = ()=>{ $("syncPanel").hidden = true; note(""); };
 
   $("syncSave").onclick = ()=>{
-    const u = $("syncUrl").value.trim(), k = $("syncKey").value.trim();
-    if(!/^https:\/\//i.test(u)){ note("The Worker URL has to start with https:// — otherwise the shelf key would travel in the clear."); $("syncUrl").focus(); return; }
-    if(!k){ note("Enter the shelf key you set on the Worker."); $("syncKey").focus(); return; }
-    cfg = {url:u, key:k};
+    const u = $("syncUrl").value.trim();
+    const n = $("syncName").value.trim().toLowerCase();
+    const k = $("syncKey").value.trim();
+    if(!/^https:\/\//i.test(u)){ note("The Worker URL has to start with https:// — otherwise the passphrase would travel in the clear."); $("syncUrl").focus(); return; }
+    if(!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(n)){ note("Your name: start with a letter or number, then letters/numbers/-/_, up to 32 characters."); $("syncName").focus(); return; }
+    if(!k){ note("Pick a passphrase — the first sync claims your name with it, and you'll need the same one on your other devices."); $("syncKey").focus(); return; }
+    cfg = {url:u, key:k, name:n};
     localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    localStorage.removeItem(STAMP_KEY);
+    setDirty(false);
     label();
     note("Checking the cloud…");
     pull(false);
   };
 
   $("syncNow").onclick = ()=>{
-    if(!on()){ note("Enter the Worker URL and shelf key first, then Turn on sync."); return; }
+    if(!on()){ note("Enter the Worker URL, your name and your passphrase first, then Turn on sync."); return; }
     note("Checking the cloud…");
     pull(false);
+    if(viewMode === "everyone") loadCombined();
   };
 
   $("syncOff").onclick = ()=>{
@@ -777,22 +827,30 @@ render();
     localStorage.removeItem(CFG_KEY);
     localStorage.removeItem(STAMP_KEY);
     setDirty(false);
-    $("syncUrl").value = ""; $("syncKey").value = "";
+    $("syncUrl").value = ""; $("syncName").value = ""; $("syncKey").value = "";
     $("syncConflict").hidden = true;
+    viewMode = "mine"; combinedGames = null;
     label();
     note("Sync off. The games stay on this device — only the settings were forgotten.");
+    render();
   };
 
   /* ---------- boot ----------
-     The listeners go on unconditionally: they check on() when they fire, so
-     sync switched on through the panel starts refreshing straight away
-     rather than only after the next reload.                              */
+     The listeners go on unconditionally: they check on() when they fire,
+     so sync switched on through the panel starts refreshing straight away
+     rather than only after the next reload. */
   label();
   document.addEventListener("visibilitychange", ()=>{
-    if(on() && document.visibilityState === "visible") pull(true);
+    if(on() && document.visibilityState === "visible"){
+      pull(true);
+      if(viewMode === "everyone") loadCombined();
+    }
   });
-  window.addEventListener("online", ()=>{ if(on()) pull(true); });
+  window.addEventListener("online", ()=>{
+    if(on()){ pull(true); if(viewMode === "everyone") loadCombined(); }
+  });
   if(on()) pull(true);
+  render(); // picks up the view-toggle label now that on() is known
 })();
 </script>
 </body>
