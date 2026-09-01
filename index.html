@@ -207,18 +207,6 @@ const CFG_KEY = "punchboard.sync.cfg.v1";     // { url, key, name } — per devi
 const STAMP_KEY = "punchboard.sync.stamp";    // remote version we last agreed with
 const DIRTY_KEY = "punchboard.sync.dirty";    // set while local edits are unpushed
 const TOKENS = ["#C2352C","#1D5F8A","#DFA028","#3D7345"];
-const SEED = [
-  {id:"s1",name:"Azul",min:2,max:4,time:40,weight:2},
-  {id:"s2",name:"Wingspan",min:1,max:5,time:70,weight:3},
-  {id:"s3",name:"Codenames",min:4,max:8,time:15,weight:1},
-  {id:"s4",name:"Ticket to Ride",min:2,max:5,time:60,weight:2},
-  {id:"s5",name:"Brass: Birmingham",min:2,max:4,time:120,weight:4},
-  {id:"s6",name:"The Crew",min:2,max:5,time:20,weight:2},
-  {id:"s7",name:"Splendor",min:2,max:4,time:30,weight:2},
-  {id:"s8",name:"Gloomhaven",min:1,max:4,time:120,weight:4},
-  {id:"s9",name:"Just One",min:3,max:7,time:20,weight:1},
-  {id:"s10",name:"Terraforming Mars",min:1,max:5,time:120,weight:4}
-];
 const TIMES = [{v:0,l:"Any"},{v:30,l:"30 min"},{v:60,l:"1 hr"},{v:90,l:"90 min"}];
 const WEIGHTS = [
   {v:"any",l:"Any",t:()=>true},
@@ -232,7 +220,7 @@ function load(){
   try{ const raw = localStorage.getItem(KEY); const p = raw && JSON.parse(raw);
     if(Array.isArray(p)) return p; }
   catch(e){ canSave = false; }
-  return SEED.slice();
+  return [];
 }
 function save(){
   try{ localStorage.setItem(KEY, JSON.stringify(games)); mark("Saved"); }
